@@ -502,31 +502,116 @@ public class Main {
         return out;
     }
 
+    static int testPassed = 0;
+    static int testFailed = 0;
+
+    static void check(String name, boolean cond) {
+        if (cond) {
+            testPassed++;
+        } else {
+            testFailed++;
+            System.out.println("FAIL: " + name);
+        }
+    }
+
     static void selfTest() {
-        int passed = 0;
-        if (color("R5").equals("R")) passed++; else fail("color R5");
-        if (rank("G+2").equals("DRAW_TWO")) passed++; else fail("rank +2");
-        if (points("W4") == 50) passed++; else fail("wild points");
-        if (isLegal("R2", "R9", "")) passed++; else fail("same color");
-        if (isLegal("G9", "R9", "")) passed++; else fail("same number");
-        if (isLegal("B3", "W", "B")) passed++; else fail("called color");
-        if (!isLegal("B3", "R9", "")) passed++; else fail("illegal mismatch");
+        testPassed = 0;
+        testFailed = 0;
 
+        //Card helpers
+        check("color_R5", color("R5").equals("R"));
+        check("color_wild_empty", color("W").equals(""));
+        check("rank_number", rank("R5").equals("NUMBER"));
+        check("rank_skip", rank("BS").equals("SKIP"));
+        check("rank_wild_draw_four", rank("W4").equals("WILD_DRAW_FOUR"));
+        check("number_extracted", number("R7") == 7);
+        check("number_minus_one_for_action_card", number("RS") == -1);
+
+        //Legality by color, number, action
+        check("legal_same_color", isLegal("R2", "R9", ""));
+        check("legal_same_number_diff_color", isLegal("G9", "R9", ""));
+        check("legal_skip_on_skip_diff_color", isLegal("BS", "RS", ""));
+        check("legal_reverse_on_reverse_diff_color", isLegal("BR", "GR", ""));
+        check("legal_draw_two_on_draw_two_diff_color", isLegal("B+2", "G+2", ""));
+        check("illegal_action_on_number", !isLegal("BS", "R5", ""));
+        check("illegal_color_and_number_mismatch", !isLegal("B3", "R9", ""));
+
+        //Wild always legal
+        check("wild_always_legal_on_number", isLegal("W", "R9", ""));
+        check("wild_draw_four_always_legal_on_action", isLegal("W4", "G+2", ""));
+
+        //Called color
+        check("legal_after_wild_called_color", isLegal("B3", "W", "B"));
+
+        //Points / scoring
+        check("points_number_face_value", points("R5") == 5);
+        check("points_skip", points("BS") == 20);
+        check("points_reverse", points("GR") == 20);
+        check("points_draw_two", points("R+2") == 20);
+        check("points_wild", points("W") == 50);
+        check("points_wild_draw_four", points("W4") == 50);
+
+        //Bot card priority: DRAW_TWO > SKIP > NUMBER > WILD
         ArrayList<String> h = new ArrayList<String>();
-        h.add("B3");
-        h.add("R4");
-        h.add("W");
-        upCard = "R9";
-        calledColor = "";
-        if (chooseBotCard(h) == 1) passed++; else fail("bot normal before wild");
+        h.add("B3"); h.add("R4"); h.add("W");
+        upCard = "R9"; calledColor = "";
+        check("bot_picks_number_before_wild", chooseBotCard(h) == 1);
 
+        ArrayList<String> hPriority = new ArrayList<String>();
+        hPriority.add("R3"); hPriority.add("RS"); hPriority.add("R+2"); hPriority.add("W");
+        upCard = "R9"; calledColor = "";
+        check("bot_prefers_draw_two_over_skip_and_number", chooseBotCard(hPriority) == 2);
+
+        ArrayList<String> hSkipOverNum = new ArrayList<String>();
+        hSkipOverNum.add("R3"); hSkipOverNum.add("RS"); hSkipOverNum.add("W");
+        upCard = "R9"; calledColor = "";
+        check("bot_prefers_skip_over_number", chooseBotCard(hSkipOverNum) == 1);
+
+        ArrayList<String> hNumOverWild = new ArrayList<String>();
+        hNumOverWild.add("R3"); hNumOverWild.add("W");
+        upCard = "R9"; calledColor = "";
+        check("bot_prefers_number_over_wild_when_legal", chooseBotCard(hNumOverWild) == 0);
+
+        ArrayList<String> hWildOnly = new ArrayList<String>();
+        hWildOnly.add("B3"); hWildOnly.add("W");
+        upCard = "R9"; calledColor = "";
+        check("bot_falls_back_to_wild_when_nothing_legal", chooseBotCard(hWildOnly) == 1);
+
+        ArrayList<String> hNoPlay = new ArrayList<String>();
+        hNoPlay.add("B3"); hNoPlay.add("Y5");
+        upCard = "R9"; calledColor = "";
+        check("bot_returns_minus_one_when_no_legal_and_no_wild", chooseBotCard(hNoPlay) == -1);
+
+        //Bot color tie-breaking: R > Y > G > B
         ArrayList<String> h2 = new ArrayList<String>();
-        h2.add("B1");
-        h2.add("B2");
-        h2.add("R3");
-        if (chooseBotColor(h2).equals("B")) passed++; else fail("bot color");
+        h2.add("B1"); h2.add("B2"); h2.add("R3");
+        check("bot_color_blue_majority", chooseBotColor(h2).equals("B"));
 
-        System.out.println("Passed " + passed + " characterization checks.");
+        ArrayList<String> tieAll = new ArrayList<String>();
+        tieAll.add("R1"); tieAll.add("Y1"); tieAll.add("G1"); tieAll.add("B1");
+        check("bot_color_four_way_tie_prefers_red", chooseBotColor(tieAll).equals("R"));
+
+        ArrayList<String> tieYG = new ArrayList<String>();
+        tieYG.add("Y1"); tieYG.add("G1");
+        check("bot_color_tie_prefers_yellow_over_green", chooseBotColor(tieYG).equals("Y"));
+
+        //Draw quirks: reshuffle when deck empty; "W" fallback when both empty
+        deck.clear();
+        discard.clear();
+        discard.add("R5");
+        String drawn1 = draw();
+        check("draw_reshuffles_discard_when_deck_empty", drawn1.equals("R5"));
+        check("draw_reshuffle_clears_discard", discard.size() == 0);
+
+        deck.clear();
+        discard.clear();
+        String drawn2 = draw();
+        check("draw_returns_W_when_deck_and_discard_both_empty", drawn2.equals("W"));
+
+        System.out.println("Passed " + testPassed + " of " + (testPassed + testFailed) + " characterization checks.");
+        if (testFailed > 0) {
+            System.exit(1);
+        }
     }
 
     static void fail(String name) {
