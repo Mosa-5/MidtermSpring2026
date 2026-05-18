@@ -82,23 +82,7 @@ public class Main {
     }
 
     static void playGame() {
-        deck.buildFresh();
-        for (int i = 0; i < hands.size(); i++) {
-            hands.get(i).clear();
-        }
-        for (int i = 0; i < playerNames.size(); i++) {
-            for (int j = 0; j < 7; j++) {
-                hands.get(i).add(draw());
-            }
-        }
-        upCard = draw();
-        while (upCard.startsWith("W")) {
-            deck.discard(upCard);
-            upCard = draw();
-        }
-        calledColor = "";
-        direction = 1;
-        currentPlayer = random.nextInt(playerNames.size());
+        setupRound();
 
         int guard = 0;
         while (guard < 3000) {
@@ -198,43 +182,67 @@ public class Main {
                     return;
                 }
 
-                if (rank(card).equals("SKIP")) {
-                    next();
-                    next();
-                } else if (rank(card).equals("REVERSE")) {
-                    direction = direction * -1;
-                    if (playerNames.size() == 2) {
-                        next();
-                        next();
-                    } else {
-                        next();
-                    }
-                } else if (rank(card).equals("DRAW_TWO")) {
-                    next();
-                    hands.get(currentPlayer).add(draw());
-                    hands.get(currentPlayer).add(draw());
-                    if (!quiet) {
-                        System.out.println(playerNames.get(currentPlayer) + " draws two.");
-                    }
-                    next();
-                } else if (rank(card).equals("WILD_DRAW_FOUR")) {
-                    next();
-                    for (int i = 0; i < 4; i++) {
-                        hands.get(currentPlayer).add(draw());
-                    }
-                    if (!quiet) {
-                        System.out.println(playerNames.get(currentPlayer) + " draws four.");
-                    }
-                    next();
-                } else {
-                    next();
-                }
+                applyEffect(card);
             } else {
                 next();
             }
         }
         if (!quiet) {
             System.out.println("Game stopped at safety limit.");
+        }
+    }
+
+    static void setupRound() {
+        deck.buildFresh();
+        for (int i = 0; i < hands.size(); i++) {
+            hands.get(i).clear();
+        }
+        for (int i = 0; i < playerNames.size(); i++) {
+            for (int j = 0; j < 7; j++) {
+                hands.get(i).add(draw());
+            }
+        }
+        upCard = draw();
+        while (upCard.startsWith("W")) {
+            deck.discard(upCard);
+            upCard = draw();
+        }
+        calledColor = "";
+        direction = 1;
+        currentPlayer = random.nextInt(playerNames.size());
+    }
+
+    static void applyEffect(String card) {
+        if (rank(card).equals("SKIP")) {
+            next();
+            next();
+        } else if (rank(card).equals("REVERSE")) {
+            direction = direction * -1;
+            if (playerNames.size() == 2) {
+                next();
+                next();
+            } else {
+                next();
+            }
+        } else if (rank(card).equals("DRAW_TWO")) {
+            next();
+            hands.get(currentPlayer).add(draw());
+            hands.get(currentPlayer).add(draw());
+            if (!quiet) {
+                System.out.println(playerNames.get(currentPlayer) + " draws two.");
+            }
+            next();
+        } else if (rank(card).equals("WILD_DRAW_FOUR")) {
+            next();
+            for (int i = 0; i < 4; i++) {
+                hands.get(currentPlayer).add(draw());
+            }
+            if (!quiet) {
+                System.out.println(playerNames.get(currentPlayer) + " draws four.");
+            }
+            next();
+        } else {
+            next();
         }
     }
 
@@ -435,6 +443,45 @@ public class Main {
         testDeck.discard("R5");
         check("draw_reshuffles_discard_when_deck_empty", testDeck.draw().equals("R5"));
         check("draw_returns_W_when_deck_and_discard_both_empty", testDeck.draw().equals("W"));
+
+        //Card effects: skip, reverse (2p quirk), reverse (3p), draw two, wild draw four
+        quiet = true;
+        deck = new Deck(random);
+        deck.buildFresh();
+
+        setupPlayers(3, false);
+        currentPlayer = 0;
+        direction = 1;
+        applyEffect("BS");
+        check("skip_advances_two_players_in_3p", currentPlayer == 2);
+
+        setupPlayers(2, false);
+        currentPlayer = 0;
+        direction = 1;
+        applyEffect("BR");
+        check("reverse_in_2p_returns_to_same_player", currentPlayer == 0);
+        check("reverse_in_2p_still_flips_direction", direction == -1);
+
+        setupPlayers(3, false);
+        currentPlayer = 0;
+        direction = 1;
+        applyEffect("BR");
+        check("reverse_flips_direction_in_3p", direction == -1);
+        check("reverse_in_3p_advances_one_step_backward", currentPlayer == 2);
+
+        setupPlayers(3, false);
+        currentPlayer = 0;
+        direction = 1;
+        applyEffect("R+2");
+        check("draw_two_target_gains_two_cards", hands.get(1).size() == 2);
+        check("draw_two_advances_past_target", currentPlayer == 2);
+
+        setupPlayers(3, false);
+        currentPlayer = 0;
+        direction = 1;
+        applyEffect("W4");
+        check("wild_draw_four_target_gains_four_cards", hands.get(1).size() == 4);
+        check("wild_draw_four_advances_past_target", currentPlayer == 2);
 
         System.out.println("Passed " + testPassed + " of " + (testPassed + testFailed) + " characterization checks.");
         if (testFailed > 0) {
