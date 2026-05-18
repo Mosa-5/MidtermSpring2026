@@ -7,6 +7,7 @@ public class Main {
     static ArrayList<Boolean> humanPlayers = new ArrayList<Boolean>();
     static ArrayList<ArrayList<String>> hands = new ArrayList<ArrayList<String>>();
     static Deck deck;
+    static BotStrategy bot = new BotStrategy();
     static int[] scores = new int[10];
     static int currentPlayer = 0;
     static int direction = 1;
@@ -242,30 +243,7 @@ public class Main {
     }
 
     static int chooseBotCard(ArrayList<String> hand) {
-        for (int i = 0; i < hand.size(); i++) {
-            String card = hand.get(i);
-            if (rank(card).equals("DRAW_TWO") && isLegal(card, upCard, calledColor)) {
-                return i;
-            }
-        }
-        for (int i = 0; i < hand.size(); i++) {
-            String card = hand.get(i);
-            if (rank(card).equals("SKIP") && isLegal(card, upCard, calledColor)) {
-                return i;
-            }
-        }
-        for (int i = 0; i < hand.size(); i++) {
-            String card = hand.get(i);
-            if (rank(card).equals("NUMBER") && isLegal(card, upCard, calledColor)) {
-                return i;
-            }
-        }
-        for (int i = 0; i < hand.size(); i++) {
-            if (hand.get(i).startsWith("W")) {
-                return i;
-            }
-        }
-        return -1;
+        return bot.chooseCard(hand, upCard, calledColor);
     }
 
     static int askHuman(ArrayList<String> hand) {
@@ -315,31 +293,7 @@ public class Main {
     }
 
     static String chooseBotColor(ArrayList<String> hand) {
-        int r = 0;
-        int y = 0;
-        int g = 0;
-        int b = 0;
-        for (int i = 0; i < hand.size(); i++) {
-            String c = color(hand.get(i));
-            if (c.equals("R")) {
-                r++;
-            } else if (c.equals("Y")) {
-                y++;
-            } else if (c.equals("G")) {
-                g++;
-            } else if (c.equals("B")) {
-                b++;
-            }
-        }
-        if (r >= y && r >= g && r >= b) {
-            return "R";
-        } else if (y >= r && y >= g && y >= b) {
-            return "Y";
-        } else if (g >= r && g >= y && g >= b) {
-            return "G";
-        } else {
-            return "B";
-        }
+        return bot.chooseColor(hand);
     }
 
     static boolean isLegal(String card, String up, String call) {
