@@ -1,6 +1,4 @@
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -8,8 +6,7 @@ public class Main {
     static ArrayList<String> playerNames = new ArrayList<String>();
     static ArrayList<Boolean> humanPlayers = new ArrayList<Boolean>();
     static ArrayList<ArrayList<String>> hands = new ArrayList<ArrayList<String>>();
-    static ArrayList<String> deck = new ArrayList<String>();
-    static ArrayList<String> discard = new ArrayList<String>();
+    static Deck deck;
     static int[] scores = new int[10];
     static int currentPlayer = 0;
     static int direction = 1;
@@ -46,6 +43,7 @@ public class Main {
         }
 
         random = new Random(seed);
+        deck = new Deck(random);
         setupPlayers(bots, human);
 
         if (playerNames.size() < 2 || playerNames.size() > 4) {
@@ -83,27 +81,7 @@ public class Main {
     }
 
     static void playGame() {
-        deck.clear();
-        String[] colors = {"R", "Y", "G", "B"};
-        for (int c = 0; c < colors.length; c++) {
-            deck.add(colors[c] + "0");
-            for (int n = 1; n <= 9; n++) {
-                deck.add(colors[c] + n);
-                deck.add(colors[c] + n);
-            }
-            deck.add(colors[c] + "S");
-            deck.add(colors[c] + "S");
-            deck.add(colors[c] + "R");
-            deck.add(colors[c] + "R");
-            deck.add(colors[c] + "+2");
-            deck.add(colors[c] + "+2");
-        }
-        for (int i = 0; i < 4; i++) {
-            deck.add("W");
-            deck.add("W4");
-        }
-        Collections.shuffle(deck, random);
-        discard.clear();
+        deck.buildFresh();
         for (int i = 0; i < hands.size(); i++) {
             hands.get(i).clear();
         }
@@ -114,7 +92,7 @@ public class Main {
         }
         upCard = draw();
         while (upCard.startsWith("W")) {
-            discard.add(upCard);
+            deck.discard(upCard);
             upCard = draw();
         }
         calledColor = "";
@@ -197,7 +175,7 @@ public class Main {
                 }
 
                 hand.remove(chosen);
-                discard.add(upCard);
+                deck.discard(upCard);
                 upCard = card;
                 calledColor = "";
                 if (!quiet) {
@@ -276,15 +254,7 @@ public class Main {
     }
 
     static String draw() {
-        if (deck.size() == 0) {
-            deck.addAll(discard);
-            discard.clear();
-            Collections.shuffle(deck, random);
-        }
-        if (deck.size() == 0) {
-            return "W";
-        }
-        return deck.remove(0);
+        return deck.draw();
     }
 
     static int chooseBotCard(ArrayList<String> hand) {
@@ -556,17 +526,10 @@ public class Main {
         check("bot_color_tie_prefers_yellow_over_green", chooseBotColor(tieYG).equals("Y"));
 
         //Draw quirks: reshuffle when deck empty; "W" fallback when both empty
-        deck.clear();
-        discard.clear();
-        discard.add("R5");
-        String drawn1 = draw();
-        check("draw_reshuffles_discard_when_deck_empty", drawn1.equals("R5"));
-        check("draw_reshuffle_clears_discard", discard.size() == 0);
-
-        deck.clear();
-        discard.clear();
-        String drawn2 = draw();
-        check("draw_returns_W_when_deck_and_discard_both_empty", drawn2.equals("W"));
+        Deck testDeck = new Deck(random);
+        testDeck.discard("R5");
+        check("draw_reshuffles_discard_when_deck_empty", testDeck.draw().equals("R5"));
+        check("draw_returns_W_when_deck_and_discard_both_empty", testDeck.draw().equals("W"));
 
         System.out.println("Passed " + testPassed + " of " + (testPassed + testFailed) + " characterization checks.");
         if (testFailed > 0) {
