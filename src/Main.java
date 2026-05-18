@@ -147,23 +147,7 @@ public class Main {
                 }
 
                 String card = hand.get(chosen);
-                boolean ok = false;
-                String cardColor = color(card);
-                String upColor = color(upCard);
-                String cardRank = rank(card);
-                String upRank = rank(upCard);
-
-                if (card.startsWith("W")) {
-                    ok = true;
-                } else if (cardColor.equals(upColor)) {
-                    ok = true;
-                } else if (!calledColor.equals("") && cardColor.equals(calledColor)) {
-                    ok = true;
-                } else if (cardRank.equals(upRank) && !cardRank.equals("NUMBER")) {
-                    ok = true;
-                } else if (cardRank.equals("NUMBER") && upRank.equals("NUMBER") && number(card) == number(upCard)) {
-                    ok = true;
-                }
+                boolean ok = isLegal(card, upCard, calledColor);
 
                 if (!ok) {
                     if (!quiet) {
@@ -260,37 +244,19 @@ public class Main {
     static int chooseBotCard(ArrayList<String> hand) {
         for (int i = 0; i < hand.size(); i++) {
             String card = hand.get(i);
-            boolean ok = false;
-            if (card.startsWith("W")) ok = true;
-            else if (color(card).equals(color(upCard))) ok = true;
-            else if (!calledColor.equals("") && color(card).equals(calledColor)) ok = true;
-            else if (rank(card).equals(rank(upCard)) && !rank(card).equals("NUMBER")) ok = true;
-            else if (rank(card).equals("NUMBER") && rank(upCard).equals("NUMBER") && number(card) == number(upCard)) ok = true;
-            if (rank(card).equals("DRAW_TWO") && ok) {
+            if (rank(card).equals("DRAW_TWO") && isLegal(card, upCard, calledColor)) {
                 return i;
             }
         }
         for (int i = 0; i < hand.size(); i++) {
             String card = hand.get(i);
-            boolean ok = false;
-            if (card.startsWith("W")) ok = true;
-            else if (color(card).equals(color(upCard))) ok = true;
-            else if (!calledColor.equals("") && color(card).equals(calledColor)) ok = true;
-            else if (rank(card).equals(rank(upCard)) && !rank(card).equals("NUMBER")) ok = true;
-            else if (rank(card).equals("NUMBER") && rank(upCard).equals("NUMBER") && number(card) == number(upCard)) ok = true;
-            if (rank(card).equals("SKIP") && ok) {
+            if (rank(card).equals("SKIP") && isLegal(card, upCard, calledColor)) {
                 return i;
             }
         }
         for (int i = 0; i < hand.size(); i++) {
             String card = hand.get(i);
-            boolean ok = false;
-            if (card.startsWith("W")) ok = true;
-            else if (color(card).equals(color(upCard))) ok = true;
-            else if (!calledColor.equals("") && color(card).equals(calledColor)) ok = true;
-            else if (rank(card).equals(rank(upCard)) && !rank(card).equals("NUMBER")) ok = true;
-            else if (rank(card).equals("NUMBER") && rank(upCard).equals("NUMBER") && number(card) == number(upCard)) ok = true;
-            if (rank(card).equals("NUMBER") && ok) {
+            if (rank(card).equals("NUMBER") && isLegal(card, upCard, calledColor)) {
                 return i;
             }
         }
@@ -377,22 +343,7 @@ public class Main {
     }
 
     static boolean isLegal(String card, String up, String call) {
-        if (card.startsWith("W")) {
-            return true;
-        }
-        if (color(card).equals(color(up))) {
-            return true;
-        }
-        if (!call.equals("") && color(card).equals(call)) {
-            return true;
-        }
-        if (rank(card).equals(rank(up)) && !rank(card).equals("NUMBER")) {
-            return true;
-        }
-        if (rank(card).equals("NUMBER") && rank(up).equals("NUMBER") && number(card) == number(up)) {
-            return true;
-        }
-        return false;
+        return Rules.isLegal(card, up, call);
     }
 
     static String color(String card) {
