@@ -9,13 +9,13 @@ public class Main {
     static Deck deck;
     static BotStrategy bot = new BotStrategy();
     static ConsoleView view = new ConsoleView();
+    static ConsoleInput input;
     static int[] scores = new int[10];
     static int currentPlayer = 0;
     static int direction = 1;
     static String upCard = "";
     static String calledColor = "";
     static Random random = new Random();
-    static Scanner scanner = new Scanner(System.in);
 
     public static void main(String[] args) {
         int bots = 3;
@@ -45,6 +45,12 @@ public class Main {
 
         random = new Random(seed);
         deck = new Deck(random);
+        final Scanner scanner = new Scanner(System.in);
+        input = new ConsoleInput(new InputSource() {
+            public String nextLine() {
+                return scanner.nextLine();
+            }
+        }, view);
         setupPlayers(bots, human);
 
         if (playerNames.size() < 2 || playerNames.size() > 4) {
@@ -90,7 +96,7 @@ public class Main {
 
             int chosen = -1;
             if (humanPlayers.get(currentPlayer).booleanValue()) {
-                chosen = askHuman(hand);
+                chosen = input.askHuman(hand, upCard, calledColor);
             } else {
                 chosen = chooseBotCard(hand);
             }
@@ -102,12 +108,8 @@ public class Main {
                 if (isLegal(drawn, upCard, calledColor)) {
                     if (!humanPlayers.get(currentPlayer).booleanValue()) {
                         chosen = hand.size() - 1;
-                    } else {
-                        System.out.print("Play drawn card " + drawn + "? y/n: ");
-                        String answer = scanner.nextLine();
-                        if (answer.equalsIgnoreCase("y") || answer.equalsIgnoreCase("yes")) {
-                            chosen = hand.size() - 1;
-                        }
+                    } else if (input.askPlayDrawn(drawn)) {
+                        chosen = hand.size() - 1;
                     }
                 }
             }
@@ -138,7 +140,7 @@ public class Main {
 
                 if (card.equals("W") || card.equals("W4")) {
                     if (humanPlayers.get(currentPlayer).booleanValue()) {
-                        calledColor = askColor();
+                        calledColor = input.askColor();
                     } else {
                         calledColor = chooseBotColor(hand);
                     }
@@ -227,52 +229,6 @@ public class Main {
 
     static int chooseBotCard(ArrayList<String> hand) {
         return bot.chooseCard(hand, upCard, calledColor);
-    }
-
-    static int askHuman(ArrayList<String> hand) {
-        while (true) {
-            System.out.print("Choose card index/code or draw: ");
-            String input = scanner.nextLine().trim().toUpperCase();
-            if (input.equals("DRAW")) {
-                return -1;
-            }
-            try {
-                int index = Integer.parseInt(input);
-                if (index >= 0 && index < hand.size()) {
-                    return index;
-                }
-            } catch (Exception ignored) {
-            }
-            for (int i = 0; i < hand.size(); i++) {
-                if (hand.get(i).equals(input)) {
-                    if (isLegal(hand.get(i), upCard, calledColor)) {
-                        return i;
-                    }
-                    System.out.println("That card is not legal.");
-                }
-            }
-            System.out.println("Card not found.");
-        }
-    }
-
-    static String askColor() {
-        while (true) {
-            System.out.print("Call color R/Y/G/B: ");
-            String input = scanner.nextLine().trim().toUpperCase();
-            if (input.equals("R")) {
-                return "R";
-            }
-            if (input.equals("Y")) {
-                return "Y";
-            }
-            if (input.equals("G")) {
-                return "G";
-            }
-            if (input.equals("B")) {
-                return "B";
-            }
-            System.out.println("Bad color.");
-        }
     }
 
     static String chooseBotColor(ArrayList<String> hand) {
@@ -447,6 +403,21 @@ public class Main {
         check("wild_draw_four_target_gains_four_cards", hands.get(1).size() == 4);
         check("wild_draw_four_advances_past_target", currentPlayer == 2);
 
+        //Human input quirks via InputSource seam
+        ArrayList<String> handForInputTest = new ArrayList<String>();
+        handForInputTest.add("R5");
+        ConsoleInput testInput1 = new ConsoleInput(queueInput("draw"), view);
+        check("human_can_type_draw_with_legal_play", testInput1.askHuman(handForInputTest, "R9", "") == -1);
+
+        ConsoleInput testInput2 = new ConsoleInput(queueInput("R5"), view);
+        check("human_typing_card_code_returns_index_when_legal", testInput2.askHuman(handForInputTest, "R9", "") == 0);
+
+        ConsoleInput testInput3 = new ConsoleInput(queueInput("BAD", "R5"), view);
+        check("human_illegal_code_reprompts_then_returns_legal", testInput3.askHuman(handForInputTest, "R9", "") == 0);
+
+        ConsoleInput testInput4 = new ConsoleInput(queueInput("G"), view);
+        check("askColor_returns_chosen_color", testInput4.askColor().equals("G"));
+
         System.out.println("Passed " + testPassed + " of " + (testPassed + testFailed) + " characterization checks.");
         if (testFailed > 0) {
             System.exit(1);
@@ -455,5 +426,14 @@ public class Main {
 
     static void fail(String name) {
         throw new RuntimeException("Failed: " + name);
+    }
+
+    static InputSource queueInput(final String... lines) {
+        return new InputSource() {
+            int idx = 0;
+            public String nextLine() {
+                return lines[idx++];
+            }
+        };
     }
 }
