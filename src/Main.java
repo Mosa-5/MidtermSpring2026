@@ -4,7 +4,7 @@ import java.util.Scanner;
 
 public class Main {
     static ArrayList<String> playerNames = new ArrayList<String>();
-    static ArrayList<Boolean> humanPlayers = new ArrayList<Boolean>();
+    static ArrayList<Boolean> isHuman = new ArrayList<Boolean>();
     static ArrayList<ArrayList<String>> hands = new ArrayList<ArrayList<String>>();
     static Deck deck;
     static BotStrategy bot = new BotStrategy();
@@ -68,16 +68,16 @@ public class Main {
 
     static void setupPlayers(int bots, boolean human) {
         playerNames.clear();
-        humanPlayers.clear();
+        isHuman.clear();
         hands.clear();
         if (human) {
             playerNames.add("You");
-            humanPlayers.add(Boolean.TRUE);
+            isHuman.add(Boolean.TRUE);
             hands.add(new ArrayList<String>());
         }
         for (int i = 1; i <= bots; i++) {
             playerNames.add("Bot" + i);
-            humanPlayers.add(Boolean.FALSE);
+            isHuman.add(Boolean.FALSE);
             hands.add(new ArrayList<String>());
         }
     }
@@ -85,9 +85,9 @@ public class Main {
     static void playGame() {
         setupRound();
 
-        int guard = 0;
-        while (guard < 3000) {
-            guard++;
+        int safetyCounter = 0;
+        while (safetyCounter < 3000) {
+            safetyCounter++;
             String name = playerNames.get(currentPlayer);
             ArrayList<String> hand = hands.get(currentPlayer);
 
@@ -95,7 +95,7 @@ public class Main {
             view.showHand(name, hand);
 
             int chosen = -1;
-            if (humanPlayers.get(currentPlayer).booleanValue()) {
+            if (isHuman.get(currentPlayer).booleanValue()) {
                 chosen = input.askHuman(hand, upCard, calledColor);
             } else {
                 chosen = chooseBotCard(hand);
@@ -106,7 +106,7 @@ public class Main {
                 hand.add(drawn);
                 view.announceDraw(name, drawn);
                 if (isLegal(drawn, upCard, calledColor)) {
-                    if (!humanPlayers.get(currentPlayer).booleanValue()) {
+                    if (!isHuman.get(currentPlayer).booleanValue()) {
                         chosen = hand.size() - 1;
                     } else if (input.askPlayDrawn(drawn)) {
                         chosen = hand.size() - 1;
@@ -118,7 +118,7 @@ public class Main {
                 if (chosen >= hand.size()) {
                     view.announceInvalidIndex(name);
                     hand.add(draw());
-                    next();
+                    advanceTurn();
                     continue;
                 }
 
@@ -128,7 +128,7 @@ public class Main {
                 if (!ok) {
                     view.announceIllegalCard(name, card);
                     hand.add(draw());
-                    next();
+                    advanceTurn();
                     continue;
                 }
 
@@ -139,7 +139,7 @@ public class Main {
                 view.announcePlay(name, card);
 
                 if (card.equals("W") || card.equals("W4")) {
-                    if (humanPlayers.get(currentPlayer).booleanValue()) {
+                    if (isHuman.get(currentPlayer).booleanValue()) {
                         calledColor = input.askColor();
                     } else {
                         calledColor = chooseBotColor(hand);
@@ -167,7 +167,7 @@ public class Main {
 
                 applyEffect(card);
             } else {
-                next();
+                advanceTurn();
             }
         }
         view.announceSafetyLimit();
@@ -195,31 +195,31 @@ public class Main {
 
     static void applyEffect(String card) {
         if (rank(card).equals("SKIP")) {
-            next();
-            next();
+            advanceTurn();
+            advanceTurn();
         } else if (rank(card).equals("REVERSE")) {
             direction = direction * -1;
             if (playerNames.size() == 2) {
-                next();
-                next();
+                advanceTurn();
+                advanceTurn();
             } else {
-                next();
+                advanceTurn();
             }
         } else if (rank(card).equals("DRAW_TWO")) {
-            next();
+            advanceTurn();
             hands.get(currentPlayer).add(draw());
             hands.get(currentPlayer).add(draw());
             view.announceDrawTwo(playerNames.get(currentPlayer));
-            next();
+            advanceTurn();
         } else if (rank(card).equals("WILD_DRAW_FOUR")) {
-            next();
+            advanceTurn();
             for (int i = 0; i < 4; i++) {
                 hands.get(currentPlayer).add(draw());
             }
             view.announceDrawFour(playerNames.get(currentPlayer));
-            next();
+            advanceTurn();
         } else {
-            next();
+            advanceTurn();
         }
     }
 
@@ -255,7 +255,7 @@ public class Main {
         return Card.points(card);
     }
 
-    static void next() {
+    static void advanceTurn() {
         currentPlayer += direction;
         if (currentPlayer >= playerNames.size()) {
             currentPlayer = 0;
