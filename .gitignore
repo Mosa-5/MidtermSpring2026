@@ -1,1 +1,6 @@
 out/
+target/
+*.class
+.claude/
+A4_assignment.md
+A4_rubric.md
