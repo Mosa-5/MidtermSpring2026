@@ -1,71 +1,105 @@
-# Midterm UNO CLI
+# UNO CLI
 
-This is a standalone CLI UNO-like game.
+A standalone CLI UNO-like game in Java. Originally built as a monolithic procedural class for the midterm refactoring assignment; converted to a standard Maven project with logging and Docker support in Assignment 4.
 
-The code is written as plausible feature-grown Java: almost everything lives in one procedural `Main` class. It works, but it has mixed responsibilities, duplicated rule logic, primitive-heavy card handling, global state, and condition-heavy gameplay code. The goal is to refactor it safely, not rewrite it.
+## Requirements
 
-## Compile
+- JDK 17 or newer
+- Maven 3.9+
+- Docker (only if you want to run inside a container)
 
-```bash
-scripts/compile.sh
+## Local commands
+
+Build:
+
+```
+mvn compile
 ```
 
-## Run Bot Games
+Run tests:
 
-```bash
-scripts/run.sh --bots 3 --games 5 --quiet
+```
+mvn test
 ```
 
-## Run Interactive Game
+This runs the 47 characterization checks via `Main --self-test`. The build fails if any check fails.
 
-```bash
-scripts/run.sh --human --bots 2 --games 1
+Package as a runnable jar:
+
+```
+mvn package
 ```
 
-Card input examples:
+Produces `target/uno-cli-1.0.0.jar`.
 
-```text
-R5   red 5
-YS   yellow skip
-BR   blue reverse
-G+2  green draw two
-W    wild
-W4   wild draw four
-draw draw a card
+Run:
+
+```
+java -jar target/uno-cli-1.0.0.jar --bots 3 --games 1 --quiet --seed 42
 ```
 
-## Characterization Checks
+Or interactively:
 
-```bash
-scripts/test.sh
+```
+java -jar target/uno-cli-1.0.0.jar --human --bots 2 --games 1
 ```
 
-## Submission
+## Docker
 
-Submit your work through GitHub:
+Build the image:
 
-1. Fork this repository to your GitHub account.
-2. Clone your fork locally.
-3. Complete the midterm work in your fork.
-4. Commit your changes with clear commit messages.
-5. Push your branch to GitHub.
-6. Open a pull request from your fork back to the original repository.
+```
+docker build -t uno-cli .
+```
 
-Your pull request must include:
+Run a bot game:
 
-* refactored source code
-* characterization tests
-* `docs/refactoring-report.md`
-* `docs/extension-readiness.md`
+```
+docker run --rm uno-cli --bots 3 --games 1 --quiet --seed 42
+```
 
-Do not submit a zip file instead of a pull request unless the instructor explicitly asks for it.
+Run an interactive game (needs `-it` so stdin stays attached):
 
-## Rules
+```
+docker run --rm -it uno-cli --human --bots 2 --games 1
+```
 
-See `docs/rules.html` for the implemented game rules.
+## CLI options
 
-## Midterm Materials
+| Flag | Meaning |
+|------|---------|
+| `--bots N` | Number of bot players (default 3) |
+| `--games N` | Number of games to play (default 1) |
+| `--human` | Add a human player |
+| `--quiet` | Suppress per-turn game output |
+| `--seed N` | Deterministic shuffle seed |
+| `--self-test` | Run the characterization test suite |
+| `--help` | Print usage |
 
-* `docs/midterm-exam.md`: midterm brief
-* `docs/rubric.md`: grading rubric
-* `docs/refactoring-guide.md`: suggested refactoring path
+## Card input examples
+
+When playing as a human, you can enter cards by code or by index:
+
+```
+R5    red 5
+YS    yellow skip
+BR    blue reverse
+G+2   green draw two
+W     wild
+W4    wild draw four
+draw  draw a card
+```
+
+## Logging
+
+Game events (game start, player turn, card played, card drawn, invalid input, round/game end) are logged via `java.util.logging` to stderr. Player-facing game output goes to stdout. Redirect stderr if you want a clean console:
+
+```
+java -jar target/uno-cli-1.0.0.jar --bots 3 --games 1 2>/dev/null
+```
+
+## Project documents
+
+- `docs/rules.html` — implemented game rules
+- `docs/refactoring-report.md` — midterm refactoring report
+- `docs/extension-readiness.md` — extension readiness note
