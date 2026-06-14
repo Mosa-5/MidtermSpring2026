@@ -1,8 +1,11 @@
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.logging.Logger;
 
 public class Main {
+    private static final Logger LOG = Logger.getLogger(Main.class.getName());
+
     static ArrayList<String> playerNames = new ArrayList<String>();
     static ArrayList<Boolean> isHuman = new ArrayList<Boolean>();
     static ArrayList<ArrayList<String>> hands = new ArrayList<ArrayList<String>>();
@@ -84,12 +87,14 @@ public class Main {
 
     static void playGame() {
         setupRound();
+        LOG.info("Game started with " + playerNames.size() + " players; first up card " + upCard);
 
         int safetyCounter = 0;
         while (safetyCounter < 3000) {
             safetyCounter++;
             String name = playerNames.get(currentPlayer);
             ArrayList<String> hand = hands.get(currentPlayer);
+            LOG.info("Turn " + safetyCounter + ": " + name);
 
             view.showUpCard(upCard, calledColor);
             view.showHand(name, hand);
@@ -104,6 +109,7 @@ public class Main {
             if (chosen == -1) {
                 String drawn = draw();
                 hand.add(drawn);
+                LOG.info(name + " drew " + drawn);
                 view.announceDraw(name, drawn);
                 if (isLegal(drawn, upCard, calledColor)) {
                     if (!isHuman.get(currentPlayer).booleanValue()) {
@@ -116,8 +122,11 @@ public class Main {
 
             if (chosen >= 0) {
                 if (chosen >= hand.size()) {
+                    LOG.warning(name + " invalid input: index " + chosen + " out of range");
                     view.announceInvalidIndex(name);
-                    hand.add(draw());
+                    String penalty = draw();
+                    hand.add(penalty);
+                    LOG.info(name + " drew penalty " + penalty);
                     advanceTurn();
                     continue;
                 }
@@ -126,8 +135,11 @@ public class Main {
                 boolean ok = isLegal(card, upCard, calledColor);
 
                 if (!ok) {
+                    LOG.warning(name + " invalid input: illegal card " + card);
                     view.announceIllegalCard(name, card);
-                    hand.add(draw());
+                    String penalty = draw();
+                    hand.add(penalty);
+                    LOG.info(name + " drew penalty " + penalty);
                     advanceTurn();
                     continue;
                 }
@@ -136,6 +148,7 @@ public class Main {
                 deck.discard(upCard);
                 upCard = card;
                 calledColor = "";
+                LOG.info(name + " played " + card);
                 view.announcePlay(name, card);
 
                 if (card.equals("W") || card.equals("W4")) {
@@ -161,6 +174,7 @@ public class Main {
                         }
                     }
                     scores[currentPlayer] += points;
+                    LOG.info("Game ended: " + name + " won with " + points + " points");
                     view.announceWin(name, points);
                     return;
                 }
@@ -170,6 +184,7 @@ public class Main {
                 advanceTurn();
             }
         }
+        LOG.warning("Game ended at safety limit (3000 turns reached)");
         view.announceSafetyLimit();
     }
 
@@ -209,6 +224,7 @@ public class Main {
             advanceTurn();
             hands.get(currentPlayer).add(draw());
             hands.get(currentPlayer).add(draw());
+            LOG.info(playerNames.get(currentPlayer) + " drew 2 cards (DRAW_TWO effect)");
             view.announceDrawTwo(playerNames.get(currentPlayer));
             advanceTurn();
         } else if (rank(card).equals("WILD_DRAW_FOUR")) {
@@ -216,6 +232,7 @@ public class Main {
             for (int i = 0; i < 4; i++) {
                 hands.get(currentPlayer).add(draw());
             }
+            LOG.info(playerNames.get(currentPlayer) + " drew 4 cards (WILD_DRAW_FOUR effect)");
             view.announceDrawFour(playerNames.get(currentPlayer));
             advanceTurn();
         } else {
