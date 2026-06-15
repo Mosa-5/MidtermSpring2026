@@ -36,6 +36,9 @@ public class Main {
         int games = 1;
         boolean human = false;
         long seed = System.currentTimeMillis();
+        int showRecentN = 0;
+        String showWinsName = null;
+        int showTopN = 0;
 
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--bots") && i + 1 < args.length) {
@@ -48,13 +51,38 @@ public class Main {
                 view.setQuiet(true);
             } else if (args[i].equals("--seed") && i + 1 < args.length) {
                 seed = Long.parseLong(args[++i]);
+            } else if (args[i].equals("--show-recent") && i + 1 < args.length) {
+                showRecentN = Integer.parseInt(args[++i]);
+            } else if (args[i].equals("--show-wins") && i + 1 < args.length) {
+                showWinsName = args[++i];
+            } else if (args[i].equals("--show-top") && i + 1 < args.length) {
+                showTopN = Integer.parseInt(args[++i]);
             } else if (args[i].equals("--self-test")) {
                 selfTest();
                 return;
             } else if (args[i].equals("--help")) {
-                System.out.println("Usage: scripts/run.sh [--bots N] [--games N] [--human] [--quiet] [--seed N]");
+                System.out.println("Usage: java -jar uno-cli.jar [--bots N] [--games N] [--human] [--quiet] [--seed N]");
+                System.out.println("                            [--show-recent N] [--show-wins NAME] [--show-top N]");
                 return;
             }
+        }
+
+        if (showRecentN > 0 || showWinsName != null || showTopN > 0) {
+            GameStatsRepository queryRepo = new GameStatsRepository();
+            try {
+                if (showRecentN > 0) {
+                    printRecentGames(queryRepo, showRecentN);
+                }
+                if (showWinsName != null) {
+                    printPlayerWins(queryRepo, showWinsName);
+                }
+                if (showTopN > 0) {
+                    printTopScores(queryRepo, showTopN);
+                }
+            } finally {
+                queryRepo.close();
+            }
+            return;
         }
 
         random = new Random(seed);
@@ -269,6 +297,36 @@ public class Main {
 
     static String draw() {
         return deck.draw();
+    }
+
+    static void printRecentGames(GameStatsRepository repo, int n) {
+        java.util.List<Game> games = repo.findRecentGames(n);
+        System.out.println("Recent games (" + games.size() + "):");
+        if (games.isEmpty()) {
+            System.out.println("  no games persisted yet");
+            return;
+        }
+        for (Game g : games) {
+            System.out.println("  " + g.getEndedAt() + "  winner=" + g.getWinner().getName()
+                    + "  rounds=" + g.getRoundsPlayed());
+        }
+    }
+
+    static void printPlayerWins(GameStatsRepository repo, String name) {
+        long wins = repo.findPlayerWinCount(name);
+        System.out.println(name + " wins: " + wins);
+    }
+
+    static void printTopScores(GameStatsRepository repo, int n) {
+        java.util.List<Score> top = repo.findTopScores(n);
+        System.out.println("Top scores (" + top.size() + "):");
+        if (top.isEmpty()) {
+            System.out.println("  no scores persisted yet");
+            return;
+        }
+        for (Score s : top) {
+            System.out.println("  " + s.getPlayer().getName() + ": " + s.getScoreValue());
+        }
     }
 
     static int chooseBotCard(ArrayList<String> hand) {
