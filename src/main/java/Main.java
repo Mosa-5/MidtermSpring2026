@@ -1,10 +1,21 @@
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Main {
     private static final Logger LOG = Logger.getLogger(Main.class.getName());
+
+    static {
+        Logger.getLogger("org.hibernate").setLevel(Level.WARNING);
+        Logger.getLogger("org.jboss").setLevel(Level.WARNING);
+        Logger.getLogger("SQL").setLevel(Level.WARNING);
+    }
 
     static ArrayList<String> playerNames = new ArrayList<String>();
     static ArrayList<Boolean> isHuman = new ArrayList<Boolean>();
@@ -61,9 +72,18 @@ public class Main {
             return;
         }
 
-        for (int g = 1; g <= games; g++) {
-            view.showGameHeader(g);
-            playGame();
+        GameStatsRepository statsRepo = new GameStatsRepository();
+        try {
+            for (int g = 1; g <= games; g++) {
+                view.showGameHeader(g);
+                GameResult result = playGame();
+                if (result.winnerName != null) {
+                    statsRepo.saveGame(result.startedAt, result.endedAt, result.roundsPlayed,
+                            result.winnerName, result.scores);
+                }
+            }
+        } finally {
+            statsRepo.close();
         }
 
         view.showFinalScores(playerNames, scores);
@@ -85,7 +105,8 @@ public class Main {
         }
     }
 
-    static void playGame() {
+    static GameResult playGame() {
+        Instant startedAt = Instant.now();
         setupRound();
         LOG.info("Game started with " + playerNames.size() + " players; first up card " + upCard);
 
@@ -176,7 +197,12 @@ public class Main {
                     scores[currentPlayer] += points;
                     LOG.info("Game ended: " + name + " won with " + points + " points");
                     view.announceWin(name, points);
-                    return;
+
+                    Map<String, Integer> perGameScores = new LinkedHashMap<String, Integer>();
+                    for (int i = 0; i < playerNames.size(); i++) {
+                        perGameScores.put(playerNames.get(i), i == currentPlayer ? points : 0);
+                    }
+                    return new GameResult(startedAt, Instant.now(), safetyCounter, name, perGameScores);
                 }
 
                 applyEffect(card);
@@ -186,6 +212,7 @@ public class Main {
         }
         LOG.warning("Game ended at safety limit (3000 turns reached)");
         view.announceSafetyLimit();
+        return new GameResult(startedAt, Instant.now(), safetyCounter, null, Collections.<String, Integer>emptyMap());
     }
 
     static void setupRound() {
