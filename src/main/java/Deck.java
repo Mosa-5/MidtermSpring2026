@@ -50,4 +50,8 @@ public class Deck {
     void discard(String card) {
         discardPile.add(card);
     }
+
+    boolean hasCards() {
+        return drawPile.size() + discardPile.size() > 0;
+    }
 }

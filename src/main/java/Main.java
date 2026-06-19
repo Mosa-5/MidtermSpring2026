@@ -1,6 +1,5 @@
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Random;
@@ -156,6 +155,10 @@ public class Main {
             }
 
             if (chosen == -1) {
+                if (!deck.hasCards()) {
+                    LOG.info("Deck exhausted on " + name + "'s turn; resolving round by fewest cards");
+                    return resolveStalemate(startedAt, safetyCounter);
+                }
                 String drawn = draw();
                 hand.add(drawn);
                 LOG.info(name + " drew " + drawn);
@@ -238,9 +241,47 @@ public class Main {
                 advanceTurn();
             }
         }
-        LOG.warning("Game ended at safety limit (3000 turns reached)");
+        LOG.warning("Game reached safety limit (3000 turns); resolving round by fewest cards");
         view.announceSafetyLimit();
-        return new GameResult(startedAt, Instant.now(), safetyCounter, null, Collections.<String, Integer>emptyMap());
+        return resolveStalemate(startedAt, safetyCounter);
+    }
+
+    // Resolves a round that ended without a normal win (deck exhausted or turn cap):
+    // the player holding the fewest hand points wins and scores the sum of all
+    // other players' remaining card points, mirroring the normal win scoring.
+    static GameResult resolveStalemate(Instant startedAt, int rounds) {
+        int winner = 0;
+        int fewestPoints = Integer.MAX_VALUE;
+        for (int i = 0; i < hands.size(); i++) {
+            int handPoints = 0;
+            for (int j = 0; j < hands.get(i).size(); j++) {
+                handPoints += points(hands.get(i).get(j));
+            }
+            if (handPoints < fewestPoints) {
+                fewestPoints = handPoints;
+                winner = i;
+            }
+        }
+
+        int points = 0;
+        for (int i = 0; i < hands.size(); i++) {
+            if (i != winner) {
+                for (int j = 0; j < hands.get(i).size(); j++) {
+                    points += points(hands.get(i).get(j));
+                }
+            }
+        }
+        scores[winner] += points;
+
+        String name = playerNames.get(winner);
+        LOG.info("Round resolved without a normal win: " + name + " wins by fewest cards with " + points + " points");
+        view.announceWin(name, points);
+
+        Map<String, Integer> perGameScores = new LinkedHashMap<String, Integer>();
+        for (int i = 0; i < playerNames.size(); i++) {
+            perGameScores.put(playerNames.get(i), i == winner ? points : 0);
+        }
+        return new GameResult(startedAt, Instant.now(), rounds, name, perGameScores);
     }
 
     static void setupRound() {
