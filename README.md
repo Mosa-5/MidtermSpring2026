@@ -73,6 +73,9 @@ docker run --rm -it uno-cli --human --bots 2 --games 1
 | `--human` | Add a human player |
 | `--quiet` | Suppress per-turn game output |
 | `--seed N` | Deterministic shuffle seed |
+| `--show-recent N` | Print the N most recent games and exit |
+| `--show-wins NAME` | Print how many games NAME has won and exit |
+| `--show-top N` | Print the N highest recorded scores and exit |
 | `--self-test` | Run the characterization test suite |
 | `--help` | Print usage |
 
@@ -98,8 +101,21 @@ Game events (game start, player turn, card played, card drawn, invalid input, ro
 java -jar target/uno-cli-1.0.0.jar --bots 3 --games 1 2>/dev/null
 ```
 
+## Persistence & statistics
+
+Completed games are stored in an embedded **H2** database via **Hibernate/JPA**, so game history and player stats persist between runs. View them with:
+
+```
+java -jar target/uno-cli-1.0.0.jar --show-recent 10
+java -jar target/uno-cli-1.0.0.jar --show-wins Alice
+java -jar target/uno-cli-1.0.0.jar --show-top 10
+```
+
+See [`docs/database.md`](docs/database.md) for the schema, configuration, and how to run the persistence tests.
+
 ## Project documents
 
+- `docs/database.md` — database, ORM, schema, and persistence-test docs
 - `docs/rules.html` — implemented game rules
 - `docs/refactoring-report.md` — midterm refactoring report
 - `docs/extension-readiness.md` — extension readiness note
