@@ -28,9 +28,7 @@ class GameRuntimeTest {
     void everySeededBotGameFinishesWithAWinnerAndNonzeroScore() {
         for (int bots = 2; bots <= 4; bots++) {
             for (long seed = 1; seed <= 50; seed++) {
-                Main.random = new Random(seed);
-                Main.deck = new Deck(Main.random);
-                Main.setupPlayers(bots, false);
+                Main.state = new GameState(Main.buildPlayers(bots, false), new Random(seed));
 
                 GameResult result = Main.playGame();
 
