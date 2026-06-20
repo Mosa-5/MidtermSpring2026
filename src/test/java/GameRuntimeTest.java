@@ -20,7 +20,7 @@ class GameRuntimeTest {
     static void quietOutput() {
         // Silence per-turn java.util.logging output and the console view so the
         // surefire report stays readable across many simulated games.
-        Logger.getLogger(Main.class.getName()).setLevel(Level.SEVERE);
+        Logger.getLogger(GameEngine.class.getName()).setLevel(Level.SEVERE);
         Main.view.setQuiet(true);
     }
 
@@ -28,9 +28,10 @@ class GameRuntimeTest {
     void everySeededBotGameFinishesWithAWinnerAndNonzeroScore() {
         for (int bots = 2; bots <= 4; bots++) {
             for (long seed = 1; seed <= 50; seed++) {
-                Main.state = new GameState(Main.buildPlayers(bots, false), new Random(seed));
+                GameState state = new GameState(Main.buildPlayers(bots, false), new Random(seed));
+                GameEngine engine = new GameEngine(state, Main.view, null, Main.bot);
 
-                GameResult result = Main.playGame();
+                GameResult result = engine.playRound();
 
                 String ctx = "bots=" + bots + " seed=" + seed;
                 assertNotNull(result.winnerName, ctx + " finished with no winner");

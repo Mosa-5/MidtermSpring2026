@@ -1,15 +1,11 @@
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Main {
-    private static final Logger LOG = Logger.getLogger(Main.class.getName());
 
     static {
         Logger.getLogger("org.hibernate").setLevel(Level.WARNING);
@@ -17,11 +13,8 @@ public class Main {
         Logger.getLogger("SQL").setLevel(Level.WARNING);
     }
 
-    static GameState state;
     static BotStrategy bot = new BotStrategy();
     static ConsoleView view = new ConsoleView();
-    static ConsoleInput input;
-    static int[] scores = new int[10];
 
     public static void main(String[] args) {
         int bots = 3;
@@ -83,19 +76,20 @@ public class Main {
             return;
         }
 
-        state = new GameState(players, new Random(seed));
+        GameState state = new GameState(players, new Random(seed));
         final Scanner scanner = new Scanner(System.in);
-        input = new ConsoleInput(new InputSource() {
+        ConsoleInput input = new ConsoleInput(new InputSource() {
             public String nextLine() {
                 return scanner.nextLine();
             }
         }, view);
+        GameEngine engine = new GameEngine(state, view, input, bot);
 
         GameStatsRepository statsRepo = new GameStatsRepository();
         try {
             for (int g = 1; g <= games; g++) {
                 view.showGameHeader(g);
-                GameResult result = playGame();
+                GameResult result = engine.playRound();
                 if (result.winnerName != null) {
                     statsRepo.saveGame(result.startedAt, result.endedAt, result.roundsPlayed,
                             result.winnerName, result.scores);
@@ -105,11 +99,7 @@ public class Main {
             statsRepo.close();
         }
 
-        ArrayList<String> names = new ArrayList<String>();
-        for (GamePlayer p : state.players) {
-            names.add(p.name());
-        }
-        view.showFinalScores(names, scores);
+        engine.showFinalScores();
     }
 
     static List<GamePlayer> buildPlayers(int bots, boolean human) {
@@ -121,141 +111,6 @@ public class Main {
             players.add(new GamePlayer("Bot" + i, false));
         }
         return players;
-    }
-
-    static GameResult playGame() {
-        Instant startedAt = Instant.now();
-        state.setupRound();
-        LOG.info("Game started with " + state.playerCount() + " players; first up card " + state.upCard);
-
-        int safetyCounter = 0;
-        while (safetyCounter < 3000) {
-            safetyCounter++;
-            GamePlayer player = state.current();
-            String name = player.name();
-            ArrayList<String> hand = player.hand();
-            LOG.info("Turn " + safetyCounter + ": " + name);
-
-            view.showUpCard(state.upCard, state.calledColor);
-            view.showHand(name, hand);
-
-            int chosen = -1;
-            if (player.isHuman()) {
-                chosen = input.askHuman(hand, state.upCard, state.calledColor);
-            } else {
-                chosen = chooseBotCard(hand);
-            }
-
-            if (chosen == -1) {
-                if (!state.deckHasCards()) {
-                    LOG.info("Deck exhausted on " + name + "'s turn; resolving round by fewest cards");
-                    return resolveStalemate(startedAt, safetyCounter);
-                }
-                String drawn = state.draw();
-                hand.add(drawn);
-                LOG.info(name + " drew " + drawn);
-                view.announceDraw(name, drawn);
-                if (isLegal(drawn, state.upCard, state.calledColor)) {
-                    if (!player.isHuman()) {
-                        chosen = hand.size() - 1;
-                    } else if (input.askPlayDrawn(drawn)) {
-                        chosen = hand.size() - 1;
-                    }
-                }
-            }
-
-            if (chosen >= 0) {
-                if (chosen >= hand.size()) {
-                    LOG.warning(name + " invalid input: index " + chosen + " out of range");
-                    view.announceInvalidIndex(name);
-                    String penalty = state.draw();
-                    hand.add(penalty);
-                    LOG.info(name + " drew penalty " + penalty);
-                    state.advanceTurn();
-                    continue;
-                }
-
-                String card = hand.get(chosen);
-                boolean ok = isLegal(card, state.upCard, state.calledColor);
-
-                if (!ok) {
-                    LOG.warning(name + " invalid input: illegal card " + card);
-                    view.announceIllegalCard(name, card);
-                    String penalty = state.draw();
-                    hand.add(penalty);
-                    LOG.info(name + " drew penalty " + penalty);
-                    state.advanceTurn();
-                    continue;
-                }
-
-                hand.remove(chosen);
-                state.deck.discard(state.upCard);
-                state.upCard = card;
-                state.calledColor = "";
-                LOG.info(name + " played " + card);
-                view.announcePlay(name, card);
-
-                if (card.equals("W") || card.equals("W4")) {
-                    if (player.isHuman()) {
-                        state.calledColor = input.askColor();
-                    } else {
-                        state.calledColor = chooseBotColor(hand);
-                    }
-                    view.announceColorCall(name, state.calledColor);
-                }
-
-                if (hand.size() == 1) {
-                    view.announceUno(name);
-                }
-
-                if (hand.size() == 0) {
-                    int points = state.opponentsHandPoints(state.currentPlayer);
-                    scores[state.currentPlayer] += points;
-                    LOG.info("Game ended: " + name + " won with " + points + " points");
-                    view.announceWin(name, points);
-                    return buildResult(startedAt, safetyCounter, state.currentPlayer, points);
-                }
-
-                GameState.ForcedDraw forced = state.applyEffect(card);
-                if (forced != null) {
-                    if (forced.count == 2) {
-                        LOG.info(forced.playerName + " drew 2 cards (DRAW_TWO effect)");
-                        view.announceDrawTwo(forced.playerName);
-                    } else if (forced.count == 4) {
-                        LOG.info(forced.playerName + " drew 4 cards (WILD_DRAW_FOUR effect)");
-                        view.announceDrawFour(forced.playerName);
-                    }
-                }
-            } else {
-                state.advanceTurn();
-            }
-        }
-        LOG.warning("Game reached safety limit (3000 turns); resolving round by fewest cards");
-        view.announceSafetyLimit();
-        return resolveStalemate(startedAt, safetyCounter);
-    }
-
-    // Resolves a round that ended without a normal win (deck exhausted or turn cap):
-    // the player holding the fewest hand points wins and scores the sum of all
-    // other players' remaining card points, mirroring the normal win scoring.
-    static GameResult resolveStalemate(Instant startedAt, int rounds) {
-        int winner = state.fewestCardsWinner();
-        int points = state.opponentsHandPoints(winner);
-        scores[winner] += points;
-
-        String name = state.players.get(winner).name();
-        LOG.info("Round resolved without a normal win: " + name + " wins by fewest cards with " + points + " points");
-        view.announceWin(name, points);
-        return buildResult(startedAt, rounds, winner, points);
-    }
-
-    // Builds the persistence DTO for a finished round: winner plus a per-player score map.
-    static GameResult buildResult(Instant startedAt, int rounds, int winnerIndex, int points) {
-        Map<String, Integer> perGameScores = new LinkedHashMap<String, Integer>();
-        for (int i = 0; i < state.players.size(); i++) {
-            perGameScores.put(state.players.get(i).name(), i == winnerIndex ? points : 0);
-        }
-        return new GameResult(startedAt, Instant.now(), rounds, state.players.get(winnerIndex).name(), perGameScores);
     }
 
     static void printRecentGames(GameStatsRepository repo, int n) {
@@ -286,14 +141,6 @@ public class Main {
         for (Score s : top) {
             System.out.println("  " + s.getPlayer().getName() + ": " + s.getScoreValue());
         }
-    }
-
-    static int chooseBotCard(ArrayList<String> hand) {
-        return bot.chooseCard(hand, state.upCard, state.calledColor);
-    }
-
-    static String chooseBotColor(ArrayList<String> hand) {
-        return bot.chooseColor(hand);
     }
 
     static boolean isLegal(String card, String up, String call) {
