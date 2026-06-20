@@ -57,6 +57,11 @@ public class ConsoleView {
         System.out.println(name + " says UNO!");
     }
 
+    void announceUnoPenalty(String name) {
+        if (quiet) return;
+        System.out.println(name + " forgot to call UNO and draws two penalty cards.");
+    }
+
     void announceWin(String name, int points) {
         if (quiet) return;
         System.out.println(name + " wins and scores " + points);

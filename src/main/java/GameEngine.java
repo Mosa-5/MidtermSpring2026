@@ -119,7 +119,13 @@ public class GameEngine {
                 }
 
                 if (hand.size() == 1) {
-                    view.announceUno(name);
+                    boolean called = player.isHuman() ? input.askUno() : true;
+                    player.setCalledUno(called);
+                    if (called) {
+                        LOG.info(name + " called UNO");
+                        view.announceUno(name);
+                    }
+                    enforceUnoPenalty(player);
                 }
 
                 if (hand.size() == 0) {
@@ -170,6 +176,20 @@ public class GameEngine {
             perGameScores.put(state.players.get(i).name(), i == winnerIndex ? points : 0);
         }
         return new GameResult(startedAt, Instant.now(), rounds, state.players.get(winnerIndex).name(), perGameScores);
+    }
+
+    // If a player is left holding a single card without having called UNO, they draw two
+    // penalty cards (self-enforced missed-UNO rule). Package-private so the rule can be
+    // unit-tested directly. Returns true if a penalty was applied.
+    boolean enforceUnoPenalty(GamePlayer player) {
+        if (player.hand().size() == 1 && !player.hasCalledUno()) {
+            player.hand().add(state.draw());
+            player.hand().add(state.draw());
+            LOG.info(player.name() + " forgot to call UNO and drew two penalty cards");
+            view.announceUnoPenalty(player.name());
+            return true;
+        }
+        return false;
     }
 
     private int chooseBotCard(ArrayList<String> hand) {

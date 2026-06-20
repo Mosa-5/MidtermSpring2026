@@ -73,4 +73,12 @@ public class ConsoleInput {
         String answer = in.nextLine();
         return answer.equalsIgnoreCase("y") || answer.equalsIgnoreCase("yes");
     }
+
+    boolean askUno() {
+        if (!view.isQuiet()) {
+            System.out.print("You are down to one card. Type UNO to call it: ");
+        }
+        String answer = in.nextLine().trim();
+        return answer.equalsIgnoreCase("uno");
+    }
 }
