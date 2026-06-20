@@ -54,4 +54,9 @@ public class Deck {
     boolean hasCards() {
         return drawPile.size() + discardPile.size() > 0;
     }
+
+    // Number of cards currently in the draw pile. Used by tests to verify deck composition.
+    int drawPileSize() {
+        return drawPile.size();
+    }
 }

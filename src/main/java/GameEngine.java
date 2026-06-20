@@ -44,15 +44,20 @@ public class GameEngine {
         return false;
     }
 
-    // Announces the overall match winner: the player with the highest cumulative score.
-    public void announceChampion() {
+    // Index of the player with the highest cumulative score. Package-private for tests.
+    int championIndex() {
         int best = 0;
         for (int i = 1; i < state.players.size(); i++) {
             if (state.players.get(i).totalScore() > state.players.get(best).totalScore()) {
                 best = i;
             }
         }
-        GamePlayer champion = state.players.get(best);
+        return best;
+    }
+
+    // Announces the overall match winner: the player with the highest cumulative score.
+    public void announceChampion() {
+        GamePlayer champion = state.players.get(championIndex());
         LOG.info("Match over: " + champion.name() + " wins with " + champion.totalScore() + " points");
         view.announceChampion(champion.name(), champion.totalScore());
     }
