@@ -15,26 +15,46 @@ public class GameEngine {
     private final ConsoleView view;
     private final ConsoleInput input;
     private final BotStrategy bot;
-    private final int[] scores;
 
     public GameEngine(GameState state, ConsoleView view, ConsoleInput input, BotStrategy bot) {
         this.state = state;
         this.view = view;
         this.input = input;
         this.bot = bot;
-        this.scores = new int[state.playerCount()];
-    }
-
-    public int[] scores() {
-        return scores;
     }
 
     public void showFinalScores() {
         ArrayList<String> names = new ArrayList<String>();
-        for (GamePlayer p : state.players) {
-            names.add(p.name());
+        int[] totals = new int[state.players.size()];
+        for (int i = 0; i < state.players.size(); i++) {
+            names.add(state.players.get(i).name());
+            totals[i] = state.players.get(i).totalScore();
         }
-        view.showFinalScores(names, scores);
+        view.showFinalScores(names, totals);
+    }
+
+    // True once any player has reached the match target score. Cumulative scores live on
+    // GamePlayer.totalScore and persist across rounds (setupRound clears hands, not scores).
+    public boolean targetReached(int target) {
+        for (GamePlayer p : state.players) {
+            if (p.totalScore() >= target) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Announces the overall match winner: the player with the highest cumulative score.
+    public void announceChampion() {
+        int best = 0;
+        for (int i = 1; i < state.players.size(); i++) {
+            if (state.players.get(i).totalScore() > state.players.get(best).totalScore()) {
+                best = i;
+            }
+        }
+        GamePlayer champion = state.players.get(best);
+        LOG.info("Match over: " + champion.name() + " wins with " + champion.totalScore() + " points");
+        view.announceChampion(champion.name(), champion.totalScore());
     }
 
     public GameResult playRound() {
@@ -130,7 +150,7 @@ public class GameEngine {
 
                 if (hand.size() == 0) {
                     int points = state.opponentsHandPoints(state.currentPlayer);
-                    scores[state.currentPlayer] += points;
+                    player.addScore(points);
                     LOG.info("Game ended: " + name + " won with " + points + " points");
                     view.announceWin(name, points);
                     return buildResult(startedAt, safetyCounter, state.currentPlayer, points);
@@ -161,7 +181,7 @@ public class GameEngine {
     private GameResult resolveStalemate(Instant startedAt, int rounds) {
         int winner = state.fewestCardsWinner();
         int points = state.opponentsHandPoints(winner);
-        scores[winner] += points;
+        state.players.get(winner).addScore(points);
 
         String name = state.players.get(winner).name();
         LOG.info("Round resolved without a normal win: " + name + " wins by fewest cards with " + points + " points");

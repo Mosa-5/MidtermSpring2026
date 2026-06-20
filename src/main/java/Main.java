@@ -24,6 +24,7 @@ public class Main {
         int showRecentN = 0;
         String showWinsName = null;
         int showTopN = 0;
+        int target = 0;
 
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--bots") && i + 1 < args.length) {
@@ -36,6 +37,8 @@ public class Main {
                 view.setQuiet(true);
             } else if (args[i].equals("--seed") && i + 1 < args.length) {
                 seed = Long.parseLong(args[++i]);
+            } else if (args[i].equals("--target") && i + 1 < args.length) {
+                target = Integer.parseInt(args[++i]);
             } else if (args[i].equals("--show-recent") && i + 1 < args.length) {
                 showRecentN = Integer.parseInt(args[++i]);
             } else if (args[i].equals("--show-wins") && i + 1 < args.length) {
@@ -46,7 +49,7 @@ public class Main {
                 selfTest();
                 return;
             } else if (args[i].equals("--help")) {
-                System.out.println("Usage: java -jar uno-cli.jar [--bots N] [--games N] [--human] [--quiet] [--seed N]");
+                System.out.println("Usage: java -jar uno-cli.jar [--bots N] [--games N] [--target N] [--human] [--quiet] [--seed N]");
                 System.out.println("                            [--show-recent N] [--show-wins NAME] [--show-top N]");
                 return;
             }
@@ -87,12 +90,18 @@ public class Main {
 
         GameStatsRepository statsRepo = new GameStatsRepository();
         try {
-            for (int g = 1; g <= games; g++) {
-                view.showGameHeader(g);
-                GameResult result = engine.playRound();
-                if (result.winnerName != null) {
-                    statsRepo.saveGame(result.startedAt, result.endedAt, result.roundsPlayed,
-                            result.winnerName, result.scores);
+            if (target > 0) {
+                // Match mode: play rounds until a player reaches the target score.
+                int round = 0;
+                do {
+                    round++;
+                    view.showGameHeader(round);
+                    persistRound(statsRepo, engine.playRound());
+                } while (!engine.targetReached(target) && round < 1000);
+            } else {
+                for (int g = 1; g <= games; g++) {
+                    view.showGameHeader(g);
+                    persistRound(statsRepo, engine.playRound());
                 }
             }
         } finally {
@@ -100,6 +109,16 @@ public class Main {
         }
 
         engine.showFinalScores();
+        if (target > 0) {
+            engine.announceChampion();
+        }
+    }
+
+    static void persistRound(GameStatsRepository repo, GameResult result) {
+        if (result.winnerName != null) {
+            repo.saveGame(result.startedAt, result.endedAt, result.roundsPlayed,
+                    result.winnerName, result.scores);
+        }
     }
 
     static List<GamePlayer> buildPlayers(int bots, boolean human) {

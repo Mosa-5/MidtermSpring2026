@@ -89,6 +89,10 @@ public class ConsoleView {
         }
     }
 
+    void announceChampion(String name, int score) {
+        System.out.println("\n" + name + " wins the match with " + score + " points!");
+    }
+
     private String join(ArrayList<String> cards) {
         String out = "";
         for (int i = 0; i < cards.size(); i++) {
