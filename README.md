@@ -22,7 +22,9 @@ Run tests:
 mvn test
 ```
 
-This runs the 47 characterization checks via `Main --self-test`. The build fails if any check fails.
+This runs the JUnit suite — rule tests (cards, legality, effects, scoring, deck
+composition, UNO penalty, matches), a seeded end-to-end runtime test, and the
+persistence tests. The build fails if any test fails.
 
 Package as a runnable jar:
 
@@ -42,6 +44,12 @@ Or interactively:
 
 ```
 java -jar target/uno-cli-1.0.0.jar --human --bots 2 --games 1
+```
+
+Play a full match until someone reaches a target score:
+
+```
+java -jar target/uno-cli-1.0.0.jar --bots 3 --target 500
 ```
 
 ## Docker
@@ -69,14 +77,14 @@ docker run --rm -it uno-cli --human --bots 2 --games 1
 | Flag | Meaning |
 |------|---------|
 | `--bots N` | Number of bot players (default 3) |
-| `--games N` | Number of games to play (default 1) |
+| `--games N` | Number of rounds to play (default 1) |
+| `--target N` | Match mode: play rounds until a player reaches N points, then name the champion |
 | `--human` | Add a human player |
 | `--quiet` | Suppress per-turn game output |
 | `--seed N` | Deterministic shuffle seed |
 | `--show-recent N` | Print the N most recent games and exit |
 | `--show-wins NAME` | Print how many games NAME has won and exit |
 | `--show-top N` | Print the N highest recorded scores and exit |
-| `--self-test` | Run the characterization test suite |
 | `--help` | Print usage |
 
 ## Card input examples
@@ -92,6 +100,11 @@ W     wild
 W4    wild draw four
 draw  draw a card
 ```
+
+After playing a wild you choose the next colour. When you are down to one card you
+are prompted to type `UNO` — forgetting to call it costs a two-card penalty. The
+full rule set and the simplifications used are documented in
+[`docs/rules-supported.md`](docs/rules-supported.md).
 
 ## Logging
 
@@ -115,6 +128,8 @@ See [`docs/database.md`](docs/database.md) for the schema, configuration, and ho
 
 ## Project documents
 
+- `docs/rules-supported.md` — which UNO rules are implemented and the variants used
+- `docs/final-report.md` — final project report (rules, CLI, architecture, tests, limitations)
 - `docs/database.md` — database, ORM, schema, and persistence-test docs
 - `docs/rules.html` — implemented game rules
 - `docs/refactoring-report.md` — midterm refactoring report
